@@ -2,30 +2,62 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const [company, setCompany] = useState("");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!company || !username || !password) {
+    if (!company || !email || !password) {
       setError("Please fill in all fields.");
       return;
     }
     setLoading(true);
-    // Mock auth for now — real auth (Supabase) gets wired in later.
-    setTimeout(() => router.push("/chat"), 400);
+    const supabase = createClient();
+
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Confirm this account belongs to the entered company code.
+    // RLS only returns the company if the user is a member of it.
+    const { data: comp } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("code", company.trim())
+      .maybeSingle();
+
+    if (!comp) {
+      setError("You don't have access to that company code.");
+      await supabase.auth.signOut();
+      setLoading(false);
+      return;
+    }
+
+    try {
+      localStorage.setItem("activeCompanyId", comp.id);
+    } catch {}
+
+    // Full navigation so middleware picks up the fresh session cookie.
+    router.push("/chat");
+    router.refresh();
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-slate-100 dark:bg-slate-950">
-      {/* Ambient gradient backdrop */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-400/20 blur-3xl" />
         <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-brand-600/20 blur-3xl" />
@@ -56,10 +88,11 @@ export default function LoginPage() {
               autoFocus
             />
             <Field
-              label="Username"
-              value={username}
-              onChange={setUsername}
-              placeholder="your username"
+              label="Email"
+              value={email}
+              onChange={setEmail}
+              placeholder="you@company.com"
+              type="email"
             />
             <Field
               label="Password"
@@ -82,7 +115,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-5">
-          Each user connects their own number. Contact your admin for access.
+          Need access? Contact your workspace admin.
         </p>
       </div>
     </div>

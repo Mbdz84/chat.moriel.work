@@ -1,5 +1,6 @@
 import TopBar from "@/components/TopBar";
 import { CallerIdProvider } from "@/lib/callerId";
+import { CompanyProvider } from "@/lib/company";
 
 export default function AppLayout({
   children,
@@ -7,11 +8,13 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <CallerIdProvider>
-      <div className="h-screen flex flex-col">
-        <TopBar />
-        <main className="flex-1 min-h-0">{children}</main>
-      </div>
-    </CallerIdProvider>
+    <CompanyProvider>
+      <CallerIdProvider>
+        <div className="h-screen flex flex-col">
+          <TopBar />
+          <main className="flex-1 min-h-0">{children}</main>
+        </div>
+      </CallerIdProvider>
+    </CompanyProvider>
   );
 }

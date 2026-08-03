@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 import FontSizeControl from "./FontSizeControl";
+import CompanySwitcher from "./CompanySwitcher";
+import { createClient } from "@/lib/supabase/client";
 
 type Tab = {
   href: string;
@@ -52,6 +54,11 @@ export default function TopBar() {
         </span>
       </Link>
 
+      {/* Company switcher */}
+      <div className="pl-1 sm:pl-2 sm:border-l border-slate-200 dark:border-slate-800">
+        <CompanySwitcher />
+      </div>
+
       {/* Tabs */}
       <nav className="flex items-center gap-1 ml-1 sm:ml-2">
         {TABS.map((t) => {
@@ -80,7 +87,11 @@ export default function TopBar() {
         </div>
         <ThemeToggle />
         <button
-          onClick={() => router.push("/")}
+          onClick={async () => {
+            await createClient().auth.signOut();
+            router.push("/");
+            router.refresh();
+          }}
           className="flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
           title="Sign out"
         >
