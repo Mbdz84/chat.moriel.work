@@ -7,6 +7,7 @@ import { useCompany } from "@/lib/company";
 import TwilioSettings from "@/components/TwilioSettings";
 import NotificationsSettings from "@/components/NotificationsSettings";
 import CompanySettings from "@/components/CompanySettings";
+import AccountSettings from "@/components/AccountSettings";
 
 // Settings sub-tabs. adminOnly tabs are hidden from viewers.
 const SETTINGS_TABS = [
@@ -14,6 +15,7 @@ const SETTINGS_TABS = [
   { key: "caller-id", label: "Caller ID", adminOnly: true },
   { key: "numbers", label: "Twilio numbers", adminOnly: true },
   { key: "notifications", label: "Notifications", adminOnly: false },
+  { key: "account", label: "Account", adminOnly: false },
 ] as const;
 
 type TabKey = (typeof SETTINGS_TABS)[number]["key"];
@@ -65,6 +67,7 @@ export default function SettingsPage() {
         {tab === "numbers" && isAdmin && <TwilioSettings />}
         {tab === "caller-id" && isAdmin && <CallerIdManager />}
         {tab === "notifications" && <NotificationsSettings />}
+        {tab === "account" && <AccountSettings />}
       </div>
     </div>
   );

@@ -224,6 +224,7 @@ function CompaniesList({
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function toggleDisabled(c: Company) {
     setBusyId(c.id);
@@ -268,6 +269,12 @@ function CompaniesList({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
+                    onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+                    className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    {expandedId === c.id ? "Hide users" : "Users"}
+                  </button>
+                  <button
                     onClick={() => toggleDisabled(c)}
                     disabled={busyId === c.id}
                     className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60"
@@ -283,6 +290,8 @@ function CompaniesList({
                   </button>
                 </div>
               </div>
+
+              {expandedId === c.id && <MembersPanel companyId={c.id} onChange={onChange} />}
 
               {confirmId === c.id && (
                 <div className="mt-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-3">
@@ -314,6 +323,199 @@ function CompaniesList({
     </Section>
   );
 }
+
+type Member = {
+  userId: string;
+  username: string | null;
+  role: "admin" | "viewer";
+  email: string;
+  banned: boolean;
+  isSelf: boolean;
+};
+
+function MembersPanel({
+  companyId,
+  onChange,
+}: {
+  companyId: string;
+  onChange: () => void;
+}) {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pwId, setPwId] = useState<string | null>(null);
+  const [pw, setPw] = useState("");
+  const [nameId, setNameId] = useState<string | null>(null);
+  const [nameVal, setNameVal] = useState("");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/admin/users?companyId=${companyId}`);
+    if (res.ok) {
+      const d = (await res.json()) as { members: Member[] };
+      setMembers(d.members);
+    }
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function patch(userId: string, body: Record<string, unknown>) {
+    await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId, userId, ...body }),
+    });
+    await load();
+    onChange();
+  }
+  async function setPassword(userId: string) {
+    setNote("");
+    const res = await fetch("/api/admin/users/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, password: pw }),
+    });
+    const d = (await res.json().catch(() => ({}))) as { error?: string };
+    setNote(res.ok ? "Password updated." : d.error ?? "Failed.");
+    if (res.ok) {
+      setPwId(null);
+      setPw("");
+    }
+  }
+  async function toggleBan(m: Member) {
+    await fetch("/api/admin/users/ban", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: m.userId, banned: !m.banned }),
+    });
+    await load();
+  }
+  async function removeMember(userId: string) {
+    await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId, userId }),
+    });
+    setConfirmId(null);
+    await load();
+    onChange();
+  }
+
+  if (loading) return <p className="mt-2 text-xs text-slate-400">Loading users…</p>;
+
+  return (
+    <div className="mt-2 rounded-lg border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+      {members.length === 0 && (
+        <p className="px-3 py-4 text-xs text-slate-400 text-center">No users.</p>
+      )}
+      {members.map((m) => (
+        <div key={m.userId} className="p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              {nameId === m.userId ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={nameVal}
+                    onChange={(e) => setNameVal(e.target.value)}
+                    autoFocus
+                    placeholder="Name"
+                    className="h-7 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-xs"
+                  />
+                  <button
+                    onClick={() => {
+                      patch(m.userId, { username: nameVal });
+                      setNameId(null);
+                    }}
+                    className="h-7 px-2 rounded-md bg-brand-600 text-white text-xs"
+                  >
+                    Save
+                  </button>
+                  <button onClick={() => setNameId(null)} className="h-7 px-2 rounded-md border border-slate-300 dark:border-slate-700 text-xs">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="text-sm font-medium truncate flex items-center gap-2">
+                  {m.username || m.email}
+                  {m.isSelf && <span className="text-xs text-slate-400">(you)</span>}
+                  {m.banned && (
+                    <span className="text-[11px] text-amber-600 bg-amber-100 dark:bg-amber-500/15 rounded-full px-2 py-0.5">
+                      Disabled
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="text-xs text-slate-400 truncate">{m.email}</div>
+            </div>
+            <select
+              value={m.role}
+              onChange={(e) => patch(m.userId, { role: e.target.value })}
+              disabled={m.isSelf}
+              className="h-8 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-xs disabled:opacity-60 shrink-0"
+            >
+              <option value="viewer">Viewer</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => { setNameId(m.userId); setNameVal(m.username ?? ""); }} className={smallBtn}>
+              Edit name
+            </button>
+            <button onClick={() => { setPwId(pwId === m.userId ? null : m.userId); setPw(""); setNote(""); }} className={smallBtn}>
+              Change password
+            </button>
+            {!m.isSelf && (
+              <button onClick={() => toggleBan(m)} className={smallBtn}>
+                {m.banned ? "Enable" : "Disable"}
+              </button>
+            )}
+            {!m.isSelf && (
+              <button onClick={() => setConfirmId(m.userId)} className="h-7 px-2.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
+                Remove
+              </button>
+            )}
+          </div>
+
+          {pwId === m.userId && (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="New password (min 6)"
+                className="h-8 flex-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-xs"
+              />
+              <button onClick={() => setPassword(m.userId)} className="h-8 px-3 rounded-md bg-brand-600 text-white text-xs font-medium">
+                Set
+              </button>
+            </div>
+          )}
+          {pwId === m.userId && note && <p className="text-xs text-slate-500">{note}</p>}
+
+          {confirmId === m.userId && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Remove {m.email} from this company?</span>
+              <button onClick={() => removeMember(m.userId)} className="h-7 px-2.5 rounded-md bg-red-600 text-white text-xs font-medium">
+                Remove
+              </button>
+              <button onClick={() => setConfirmId(null)} className="h-7 px-2.5 rounded-md border border-slate-300 dark:border-slate-700 text-xs">
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const smallBtn =
+  "h-7 px-2.5 rounded-md border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800";
 
 const inputCls =
   "flex-1 h-10 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30";

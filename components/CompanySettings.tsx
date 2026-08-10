@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useCompany } from "@/lib/company";
 import { createClient } from "@/lib/supabase/client";
+import CompanyUsers from "./CompanyUsers";
 
 export default function CompanySettings() {
   const { active, isAdmin, reload } = useCompany();
@@ -95,6 +96,8 @@ export default function CompanySettings() {
           </p>
         </div>
       </Section>
+
+      {isAdmin && <CompanyUsers />}
     </div>
   );
 }
