@@ -4,6 +4,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Chat Console",
   description: "SMS chat console",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Chat", statusBarStyle: "default" },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {

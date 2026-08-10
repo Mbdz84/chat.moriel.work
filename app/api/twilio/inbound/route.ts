@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateTwilioSignature } from "@/lib/twilio";
-import { normalizeNumber } from "@/lib/format";
+import { normalizeNumber, formatNumber } from "@/lib/format";
+import { sendPushToUsers } from "@/lib/webpush";
 
 export const runtime = "nodejs";
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       { company_id: companyId, our_number: to, contact_number: from },
       { onConflict: "company_id,our_number,contact_number" }
     )
-    .select("id")
+    .select("id, muted")
     .single();
 
   if (convo) {
@@ -72,6 +73,37 @@ export async function POST(req: NextRequest) {
       status: "received",
       twilio_sid: sid,
     });
+
+    // Notify company members (unless the conversation is muted).
+    if (!convo.muted) {
+      try {
+        // Prefer the saved Caller ID name for the notification title.
+        const { data: caller } = await admin
+          .from("caller_id")
+          .select("number, name")
+          .eq("company_id", companyId);
+        const nameHit = (caller ?? []).find(
+          (c: { number: string; name: string }) =>
+            normalizeNumber(c.number) === normalizeNumber(from)
+        );
+        const title = nameHit?.name || formatNumber(from);
+
+        const { data: members } = await admin
+          .from("memberships")
+          .select("user_id")
+          .eq("company_id", companyId);
+        const userIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
+
+        await sendPushToUsers(admin, userIds, {
+          title,
+          body: body || "New message",
+          url: "/chat",
+          tag: convo.id,
+        });
+      } catch {
+        // never fail the webhook because of a push error
+      }
+    }
   }
 
   return TWIML_OK;

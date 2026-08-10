@@ -4,11 +4,13 @@ import { useState } from "react";
 import { formatNumber } from "@/lib/format";
 import { useCallerId, type CallerIdEntry } from "@/lib/callerId";
 import TwilioSettings from "@/components/TwilioSettings";
+import NotificationsSettings from "@/components/NotificationsSettings";
 
 // Settings sub-tabs. Add more entries here as features grow.
 const SETTINGS_TABS = [
   { key: "numbers", label: "Numbers" },
   { key: "caller-id", label: "Caller ID" },
+  { key: "notifications", label: "Notifications" },
 ] as const;
 
 type TabKey = (typeof SETTINGS_TABS)[number]["key"];
@@ -48,6 +50,7 @@ export default function SettingsPage() {
 
         {tab === "numbers" && <TwilioSettings />}
         {tab === "caller-id" && <CallerIdManager />}
+        {tab === "notifications" && <NotificationsSettings />}
       </div>
     </div>
   );
