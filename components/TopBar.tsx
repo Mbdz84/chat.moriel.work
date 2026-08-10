@@ -81,6 +81,10 @@ export default function TopBar() {
       setUnread(count ?? 0);
     };
     load();
+    // Recount instantly when the chat view marks something read/unread in this
+    // same tab (realtime alone can lag or miss the conversations update).
+    const onLocal = () => load();
+    window.addEventListener("chat:unread", onLocal);
     const ch = s
       .channel(`unread-${companyId}`)
       .on(
@@ -88,8 +92,14 @@ export default function TopBar() {
         { event: "*", schema: "public", table: "conversations", filter: `company_id=eq.${companyId}` },
         () => load()
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages", filter: `company_id=eq.${companyId}` },
+        () => load()
+      )
       .subscribe();
     return () => {
+      window.removeEventListener("chat:unread", onLocal);
       s.removeChannel(ch);
     };
   }, [companyId]);

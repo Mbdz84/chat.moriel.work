@@ -119,6 +119,13 @@ export default function ChatPage() {
     return name ?? null;
   }
 
+  // Tell the top-bar badge to recount immediately (its realtime can lag).
+  function notifyUnread() {
+    try {
+      window.dispatchEvent(new Event("chat:unread"));
+    } catch {}
+  }
+
   // ----- load conversations for the active company -----
   const loadConversations = useCallback(async () => {
     if (!companyId) {
@@ -126,6 +133,7 @@ export default function ChatPage() {
       return;
     }
     setConversations(await fetchConversations(companyId));
+    notifyUnread();
   }, [companyId]);
 
   useEffect(() => {
@@ -142,9 +150,15 @@ export default function ChatPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "messages", filter: `company_id=eq.${companyId}` },
         (payload: { new?: { conversation_id?: string } }) => {
-          loadConversations();
-          if (payload.new?.conversation_id === activeIdRef.current) {
+          const cid = payload.new?.conversation_id;
+          if (cid && cid === activeIdRef.current) {
+            // Message landed in the conversation that's open on screen — it's
+            // already read, so clear unread in the DB before refreshing the list
+            // (otherwise the trigger's +1 leaves a stuck badge).
             fetchMessages(activeIdRef.current).then(setMessages);
+            patchConversation(cid, { unread: 0 }).then(loadConversations);
+          } else {
+            loadConversations();
           }
         }
       )
@@ -252,7 +266,7 @@ export default function ChatPage() {
     const c = conversations.find((x) => x.id === id);
     if (c && c.unread > 0) {
       setConversations((prev) => prev.map((x) => (x.id === id ? { ...x, unread: 0 } : x)));
-      patchConversation(id, { unread: 0 });
+      patchConversation(id, { unread: 0 }).then(notifyUnread);
     }
   }
 
