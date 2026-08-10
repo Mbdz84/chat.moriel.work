@@ -30,22 +30,28 @@ export default function NotificationsSettings() {
   const [testMsg, setTestMsg] = useState("");
   async function sendTest() {
     setTestMsg("Sending…");
-    const res = await fetch("/api/push/test", { method: "POST" });
-    const d = (await res.json().catch(() => ({}))) as {
-      subscriptions?: number;
-      vapidConfigured?: boolean;
-      error?: string;
-    };
-    if (!res.ok) {
-      setTestMsg(d.error ?? "Failed.");
-      return;
-    }
-    if (!d.vapidConfigured) {
-      setTestMsg("Server is missing VAPID keys — add them in Vercel and redeploy.");
-    } else if (!d.subscriptions) {
-      setTestMsg("No subscription saved on this device — turn notifications off and on again.");
-    } else {
-      setTestMsg(`Sent to ${d.subscriptions} device(s). If nothing appears, check Android app notification permission.`);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const txt = await res.text();
+      let d: { subscriptions?: number; vapidConfigured?: boolean; error?: string; raw?: string } = {};
+      try {
+        d = JSON.parse(txt);
+      } catch {
+        d = { raw: txt };
+      }
+      if (!res.ok) {
+        setTestMsg(`Failed (${res.status}): ${d.error || d.raw || "unknown error"}`);
+        return;
+      }
+      if (!d.vapidConfigured) {
+        setTestMsg("Server is missing VAPID keys — add them in Vercel and redeploy.");
+      } else if (!d.subscriptions) {
+        setTestMsg("No subscription saved on this device — turn notifications off and on again.");
+      } else {
+        setTestMsg(`Sent to ${d.subscriptions} device(s). If nothing appears, check the Android app's notification permission.`);
+      }
+    } catch (e) {
+      setTestMsg(`Network error: ${e instanceof Error ? e.message : "unknown"}`);
     }
   }
 

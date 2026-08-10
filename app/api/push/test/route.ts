@@ -7,31 +7,44 @@ export const runtime = "nodejs";
 
 // Sends a test push to the current user's own devices. Useful for debugging.
 export async function POST() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  const admin = createAdminClient();
-  const { data: subs } = await admin
-    .from("push_subscriptions")
-    .select("id")
-    .eq("user_id", user.id);
+    const admin = createAdminClient();
+    const { data: subs, error: subErr } = await admin
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", user.id);
+    if (subErr) {
+      return NextResponse.json(
+        { error: `DB error: ${subErr.message}` },
+        { status: 500 }
+      );
+    }
 
-  const vapidConfigured = Boolean(
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
-  );
+    const vapidConfigured = Boolean(
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
+    );
 
-  await sendPushToUsers(admin, [user.id], {
-    title: "Test notification",
-    body: "Push is working ✅",
-    url: "/chat",
-  });
+    await sendPushToUsers(admin, [user.id], {
+      title: "Test notification",
+      body: "Push is working ✅",
+      url: "/chat",
+    });
 
-  return NextResponse.json({
-    ok: true,
-    subscriptions: subs?.length ?? 0,
-    vapidConfigured,
-  });
+    return NextResponse.json({
+      ok: true,
+      subscriptions: subs?.length ?? 0,
+      vapidConfigured,
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Unexpected error" },
+      { status: 500 }
+    );
+  }
 }
