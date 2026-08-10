@@ -44,12 +44,18 @@ export default function LoginPage() {
     // RLS only returns the company if the user is a member of it.
     const { data: comp } = await supabase
       .from("companies")
-      .select("id")
+      .select("id, disabled")
       .eq("code", company.trim())
       .maybeSingle();
 
     if (!comp) {
       setError("You don't have access to that company code.");
+      await supabase.auth.signOut();
+      setLoading(false);
+      return;
+    }
+    if (comp.disabled) {
+      setError("This company is currently disabled. Contact your administrator.");
       await supabase.auth.signOut();
       setLoading(false);
       return;

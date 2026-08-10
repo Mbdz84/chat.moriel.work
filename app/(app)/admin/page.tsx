@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type Company = { id: string; code: string; name: string; members: number };
+type Company = {
+  id: string;
+  code: string;
+  name: string;
+  members: number;
+  disabled: boolean;
+};
 
 export default function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
@@ -51,7 +57,7 @@ export default function AdminPage() {
 
         <CreateCompany onCreated={loadCompanies} />
         <CreateUser companies={companies} onCreated={loadCompanies} />
-        <CompaniesList companies={companies} />
+        <CompaniesList companies={companies} onChange={loadCompanies} />
       </div>
     </div>
   );
@@ -205,7 +211,35 @@ function CreateUser({
   );
 }
 
-function CompaniesList({ companies }: { companies: Company[] }) {
+function CompaniesList({
+  companies,
+  onChange,
+}: {
+  companies: Company[];
+  onChange: () => void;
+}) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function toggleDisabled(c: Company) {
+    setBusyId(c.id);
+    await fetch(`/api/admin/companies/${c.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ disabled: !c.disabled }),
+    });
+    setBusyId(null);
+    onChange();
+  }
+
+  async function remove(c: Company) {
+    setBusyId(c.id);
+    await fetch(`/api/admin/companies/${c.id}`, { method: "DELETE" });
+    setBusyId(null);
+    setConfirmId(null);
+    onChange();
+  }
+
   return (
     <Section title="Companies">
       {companies.length === 0 ? (
@@ -213,14 +247,62 @@ function CompaniesList({ companies }: { companies: Company[] }) {
       ) : (
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {companies.map((c) => (
-            <div key={c.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <div className="text-sm font-medium">{c.name}</div>
-                <div className="text-xs text-slate-400">Code {c.code}</div>
+            <div key={c.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    <span className="truncate">{c.name}</span>
+                    {c.disabled && (
+                      <span className="text-[11px] font-medium text-amber-600 bg-amber-100 dark:bg-amber-500/15 rounded-full px-2 py-0.5">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    Code {c.code} · {c.members} {c.members === 1 ? "member" : "members"}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => toggleDisabled(c)}
+                    disabled={busyId === c.id}
+                    className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {c.disabled ? "Enable" : "Disable"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmId(c.id)}
+                    disabled={busyId === c.id}
+                    className="h-8 px-3 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-60"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <span className="text-xs text-slate-400">
-                {c.members} {c.members === 1 ? "member" : "members"}
-              </span>
+
+              {confirmId === c.id && (
+                <div className="mt-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 p-3">
+                  <p className="text-xs text-red-700 dark:text-red-300">
+                    Permanently delete <strong>{c.name}</strong> and all its
+                    numbers, contacts and messages? This cannot be undone.
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => remove(c)}
+                      disabled={busyId === c.id}
+                      className="h-8 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium disabled:opacity-60"
+                    >
+                      {busyId === c.id ? "Deleting…" : "Delete permanently"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmId(null)}
+                      className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

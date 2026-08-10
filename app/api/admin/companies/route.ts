@@ -12,7 +12,7 @@ export async function GET() {
   const admin = createAdminClient();
   const { data } = await admin
     .from("companies")
-    .select("id, code, name, created_at")
+    .select("id, code, name, disabled, created_at")
     .order("created_at", { ascending: true });
 
   // Member counts per company.
@@ -23,7 +23,7 @@ export async function GET() {
   });
 
   const companies = (data ?? []).map(
-    (c: { id: string; code: string; name: string }) => ({
+    (c: { id: string; code: string; name: string; disabled: boolean }) => ({
       ...c,
       members: counts[c.id] ?? 0,
     })

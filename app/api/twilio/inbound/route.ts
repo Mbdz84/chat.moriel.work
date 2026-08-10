@@ -40,9 +40,11 @@ export async function POST(req: NextRequest) {
   // Verify the request signature using this company's Twilio auth token.
   const { data: company } = await admin
     .from("companies")
-    .select("twilio_auth_token")
+    .select("twilio_auth_token, disabled")
     .eq("id", companyId)
     .single();
+  // Disabled company: acknowledge but store nothing.
+  if (company?.disabled) return TWIML_OK;
   const token = company?.twilio_auth_token as string | undefined;
   const skip = process.env.TWILIO_SKIP_VALIDATION === "1";
   if (token && !skip) {

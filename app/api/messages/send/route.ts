@@ -50,9 +50,12 @@ export async function POST(req: NextRequest) {
   // Company's Twilio credentials.
   const { data: company } = await admin
     .from("companies")
-    .select("twilio_account_sid, twilio_auth_token")
+    .select("twilio_account_sid, twilio_auth_token, disabled")
     .eq("id", convo.company_id)
     .single();
+  if (company?.disabled) {
+    return NextResponse.json({ error: "This company is disabled." }, { status: 403 });
+  }
   if (!company?.twilio_account_sid || !company?.twilio_auth_token) {
     return NextResponse.json(
       { error: "Twilio is not configured for this company." },
