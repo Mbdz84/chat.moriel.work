@@ -45,6 +45,19 @@ export async function listIncomingNumbers(
   }));
 }
 
+// Fetch the account's remaining balance.
+export async function getAccountBalance(
+  accountSid: string,
+  authToken: string
+): Promise<{ balance: string; currency: string } | null> {
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Balance.json`;
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+  const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
+  if (!res.ok) return null;
+  const d = (await res.json()) as { balance?: string; currency?: string };
+  return { balance: d.balance ?? "", currency: d.currency ?? "" };
+}
+
 // Send an SMS via Twilio's REST API (no SDK needed — just a POST).
 export async function sendSms(opts: {
   accountSid: string;

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listIncomingNumbers } from "@/lib/twilio";
+import { listIncomingNumbers, getAccountBalance } from "@/lib/twilio";
 import { normalizeNumber } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -54,48 +54,29 @@ export async function GET(req: NextRequest) {
   const accountSid = (company?.twilio_account_sid as string) ?? "";
   const token = (company?.twilio_auth_token as string) ?? "";
 
-  const registered = new Set(
-    (numbers ?? []).map((n: { phone_number: string }) => normalizeNumber(n.phone_number))
-  );
-
-  // Ask Twilio for all numbers in the account + their inbound webhook.
-  const webhookByNumber: Record<string, boolean> = {};
-  let discovered: {
-    phoneNumber: string;
-    friendlyName: string;
-    connected: boolean;
-    registered: boolean;
-  }[] = [];
-  let twilioError = false;
-  if (accountSid && token) {
-    try {
-      const live = await listIncomingNumbers(accountSid, token);
-      discovered = live.map((n) => {
-        const connected = n.smsUrl.replace(/\/$/, "") === url;
-        webhookByNumber[normalizeNumber(n.phoneNumber)] = connected;
-        return {
-          phoneNumber: n.phoneNumber,
-          friendlyName: n.friendlyName,
-          connected,
-          registered: registered.has(normalizeNumber(n.phoneNumber)),
-        };
-      });
-    } catch {
-      twilioError = true;
-    }
-  }
-
+  // Cheap: DB only for numbers. Twilio's full list is queried only on "pull".
   const rows = (numbers ?? []).map(
     (n: { id: string; phone_number: string; label: string | null }) => ({
       id: n.id,
       phone_number: n.phone_number,
       label: n.label,
-      webhookConnected:
-        accountSid && token
-          ? webhookByNumber[normalizeNumber(n.phone_number)] ?? false
-          : null,
     })
   );
+
+  // One small call: current account balance (if creds present).
+  let balance: string | null = null;
+  let currency: string | null = null;
+  if (accountSid && token) {
+    try {
+      const b = await getAccountBalance(accountSid, token);
+      if (b) {
+        balance = b.balance;
+        currency = b.currency;
+      }
+    } catch {
+      // ignore — just don't show a balance
+    }
+  }
 
   return NextResponse.json({
     role,
@@ -104,8 +85,8 @@ export async function GET(req: NextRequest) {
     hasToken: Boolean(token),
     inboundUrl: url,
     numbers: rows,
-    discovered,
-    twilioError,
+    balance,
+    currency,
   });
 }
 
