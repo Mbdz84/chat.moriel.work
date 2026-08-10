@@ -1,20 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { myNumber } from "@/lib/mockData";
 import { formatNumber } from "@/lib/format";
 import { useCallerId, type CallerIdEntry } from "@/lib/callerId";
+import TwilioSettings from "@/components/TwilioSettings";
 
 // Settings sub-tabs. Add more entries here as features grow.
 const SETTINGS_TABS = [
+  { key: "numbers", label: "Numbers" },
   { key: "caller-id", label: "Caller ID" },
-  { key: "general", label: "General" },
 ] as const;
 
 type TabKey = (typeof SETTINGS_TABS)[number]["key"];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<TabKey>("caller-id");
+  const [tab, setTab] = useState<TabKey>("numbers");
 
   return (
     <div className="h-full overflow-y-auto scroll-thin">
@@ -46,13 +46,8 @@ export default function SettingsPage() {
           })}
         </div>
 
+        {tab === "numbers" && <TwilioSettings />}
         {tab === "caller-id" && <CallerIdManager />}
-        {tab === "general" && (
-          <Section title="Your number">
-            <Row label="SMS number" value={formatNumber(myNumber)} />
-            <Row label="Status" value="Connected (mock)" />
-          </Section>
-        )}
       </div>
     </div>
   );

@@ -8,87 +8,90 @@ import {
   useMemo,
   useState,
 } from "react";
-import { callerIdSeed } from "./mockData";
+import { createClient } from "./supabase/client";
 import { normalizeNumber } from "./format";
+import { useCompany } from "./company";
 
 export type CallerIdEntry = { id: string; number: string; name: string };
 
 type Ctx = {
   entries: CallerIdEntry[];
-  addEntry: (number: string, name: string) => void;
-  updateEntry: (id: string, number: string, name: string) => void;
-  removeEntry: (id: string) => void;
+  addEntry: (number: string, name: string) => Promise<void>;
+  updateEntry: (id: string, number: string, name: string) => Promise<void>;
+  removeEntry: (id: string) => Promise<void>;
   nameFor: (number: string) => string | undefined;
+  reload: () => Promise<void>;
 };
 
 const CallerIdContext = createContext<Ctx | null>(null);
 
-const ENTRIES_KEY = "callerId.entries";
-
-function seedEntries(): CallerIdEntry[] {
-  return callerIdSeed.map((e, i) => ({ id: `seed-${i}`, ...e }));
-}
-
 export function CallerIdProvider({ children }: { children: React.ReactNode }) {
-  const [entries, setEntries] = useState<CallerIdEntry[]>(seedEntries);
+  const { active } = useCompany();
+  const companyId = active?.companyId ?? null;
+  const [entries, setEntries] = useState<CallerIdEntry[]>([]);
 
-  // Restore from localStorage on mount.
+  const reload = useCallback(async () => {
+    if (!companyId) {
+      setEntries([]);
+      return;
+    }
+    const s = createClient();
+    const { data } = await s
+      .from("caller_id")
+      .select("id, number, name")
+      .eq("company_id", companyId)
+      .order("name", { ascending: true });
+    setEntries((data ?? []) as CallerIdEntry[]);
+  }, [companyId]);
+
   useEffect(() => {
-    try {
-      const rawE = localStorage.getItem(ENTRIES_KEY);
-      if (rawE) setEntries(JSON.parse(rawE));
-    } catch {}
-  }, []);
-
-  const persist = useCallback((next: CallerIdEntry[]) => {
-    setEntries(next);
-    try {
-      localStorage.setItem(ENTRIES_KEY, JSON.stringify(next));
-    } catch {}
-  }, []);
+    reload();
+  }, [reload]);
 
   const addEntry = useCallback(
-    (number: string, name: string) => {
-      const entry: CallerIdEntry = {
-        id: `cid-${Date.now()}`,
-        number: number.trim(),
-        name: name.trim(),
-      };
-      persist([entry, ...entries]);
+    async (number: string, name: string) => {
+      if (!companyId) return;
+      const s = createClient();
+      await s
+        .from("caller_id")
+        .insert({ company_id: companyId, number: number.trim(), name: name.trim() });
+      await reload();
     },
-    [entries, persist]
+    [companyId, reload]
   );
 
   const updateEntry = useCallback(
-    (id: string, number: string, name: string) => {
-      persist(
-        entries.map((e) =>
-          e.id === id ? { ...e, number: number.trim(), name: name.trim() } : e
-        )
-      );
+    async (id: string, number: string, name: string) => {
+      const s = createClient();
+      await s
+        .from("caller_id")
+        .update({ number: number.trim(), name: name.trim() })
+        .eq("id", id);
+      await reload();
     },
-    [entries, persist]
+    [reload]
   );
 
   const removeEntry = useCallback(
-    (id: string) => {
-      persist(entries.filter((e) => e.id !== id));
+    async (id: string) => {
+      const s = createClient();
+      await s.from("caller_id").delete().eq("id", id);
+      await reload();
     },
-    [entries, persist]
+    [reload]
   );
 
   const nameFor = useCallback(
     (number: string) => {
       const key = normalizeNumber(number);
-      const hit = entries.find((e) => normalizeNumber(e.number) === key);
-      return hit?.name || undefined;
+      return entries.find((e) => normalizeNumber(e.number) === key)?.name || undefined;
     },
     [entries]
   );
 
   const value = useMemo<Ctx>(
-    () => ({ entries, addEntry, updateEntry, removeEntry, nameFor }),
-    [entries, addEntry, updateEntry, removeEntry, nameFor]
+    () => ({ entries, addEntry, updateEntry, removeEntry, nameFor, reload }),
+    [entries, addEntry, updateEntry, removeEntry, nameFor, reload]
   );
 
   return (
