@@ -27,6 +27,28 @@ export default function NotificationsSettings() {
     })();
   }, []);
 
+  const [testMsg, setTestMsg] = useState("");
+  async function sendTest() {
+    setTestMsg("Sending…");
+    const res = await fetch("/api/push/test", { method: "POST" });
+    const d = (await res.json().catch(() => ({}))) as {
+      subscriptions?: number;
+      vapidConfigured?: boolean;
+      error?: string;
+    };
+    if (!res.ok) {
+      setTestMsg(d.error ?? "Failed.");
+      return;
+    }
+    if (!d.vapidConfigured) {
+      setTestMsg("Server is missing VAPID keys — add them in Vercel and redeploy.");
+    } else if (!d.subscriptions) {
+      setTestMsg("No subscription saved on this device — turn notifications off and on again.");
+    } else {
+      setTestMsg(`Sent to ${d.subscriptions} device(s). If nothing appears, check Android app notification permission.`);
+    }
+  }
+
   async function toggle() {
     setBusy(true);
     setError("");
@@ -83,6 +105,18 @@ export default function NotificationsSettings() {
                 {busy ? "…" : enabled ? "Turn off" : "Enable"}
               </button>
             </div>
+
+            {enabled && (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={sendTest}
+                  className="h-9 px-4 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Send test notification
+                </button>
+                {testMsg && <span className="text-xs text-slate-500">{testMsg}</span>}
+              </div>
+            )}
 
             {permission === "denied" && (
               <p className="text-xs text-amber-600">
