@@ -376,13 +376,18 @@ export default function ChatPage() {
                 >
                   <Avatar label={title} color={colorFor(c.contact_number)} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-start justify-between gap-2">
                       <span className="font-medium truncate flex items-center gap-1">
                         {title}
                         {c.muted && <MuteIcon />}
                       </span>
-                      <span className={`text-[11px] shrink-0 ${c.unread > 0 ? "text-brand-600 dark:text-brand-400 font-semibold" : "text-slate-400"}`}>
-                        {listStamp(c.last_message_at)}
+                      <span className="flex flex-col items-end shrink-0 leading-tight">
+                        <span className={`text-[11px] ${c.unread > 0 ? "text-brand-600 dark:text-brand-400 font-semibold" : "text-slate-400"}`}>
+                          {listStamp(c.last_message_at)}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {formatNumber(c.our_number)}
+                        </span>
                       </span>
                     </div>
                     {sub && <div className="text-xs text-slate-400 truncate">{sub}</div>}
