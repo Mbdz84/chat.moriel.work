@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,6 +11,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Remember the last company code entered on this device.
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem("lastCompanyCode");
+      if (last) setCompany(last);
+    } catch {}
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +57,7 @@ export default function LoginPage() {
 
     try {
       localStorage.setItem("activeCompanyId", comp.id);
+      localStorage.setItem("lastCompanyCode", company.trim());
     } catch {}
 
     // Full navigation so middleware picks up the fresh session cookie.
@@ -84,7 +93,9 @@ export default function LoginPage() {
               label="Company code"
               value={company}
               onChange={setCompany}
-              placeholder="e.g. 01222"
+              placeholder="e.g. 12345"
+              name="company"
+              autoComplete="organization"
               autoFocus
             />
             <Field
@@ -93,6 +104,8 @@ export default function LoginPage() {
               onChange={setEmail}
               placeholder="you@company.com"
               type="email"
+              name="email"
+              autoComplete="username"
             />
             <Field
               label="Password"
@@ -100,6 +113,8 @@ export default function LoginPage() {
               onChange={setPassword}
               placeholder="••••••••"
               type="password"
+              name="password"
+              autoComplete="current-password"
             />
 
             {error && <p className="text-sm text-red-500">{error}</p>}
@@ -129,6 +144,8 @@ function Field({
   placeholder,
   type = "text",
   autoFocus = false,
+  name,
+  autoComplete,
 }: {
   label: string;
   value: string;
@@ -136,6 +153,8 @@ function Field({
   placeholder?: string;
   type?: string;
   autoFocus?: boolean;
+  name?: string;
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
@@ -146,6 +165,8 @@ function Field({
         type={type}
         value={value}
         autoFocus={autoFocus}
+        name={name}
+        autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="mt-1.5 w-full h-11 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 placeholder:text-slate-400"

@@ -1,22 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatNumber } from "@/lib/format";
 import { useCallerId, type CallerIdEntry } from "@/lib/callerId";
+import { useCompany } from "@/lib/company";
 import TwilioSettings from "@/components/TwilioSettings";
 import NotificationsSettings from "@/components/NotificationsSettings";
+import CompanySettings from "@/components/CompanySettings";
 
-// Settings sub-tabs. Add more entries here as features grow.
+// Settings sub-tabs. adminOnly tabs are hidden from viewers.
 const SETTINGS_TABS = [
-  { key: "caller-id", label: "Caller ID" },
-  { key: "numbers", label: "Twilio numbers" },
-  { key: "notifications", label: "Notifications" },
+  { key: "company", label: "Company", adminOnly: true },
+  { key: "caller-id", label: "Caller ID", adminOnly: true },
+  { key: "numbers", label: "Twilio numbers", adminOnly: true },
+  { key: "notifications", label: "Notifications", adminOnly: false },
 ] as const;
 
 type TabKey = (typeof SETTINGS_TABS)[number]["key"];
 
 export default function SettingsPage() {
+  const { isAdmin } = useCompany();
+  const visibleTabs = SETTINGS_TABS.filter((t) => isAdmin || !t.adminOnly);
   const [tab, setTab] = useState<TabKey>("caller-id");
+
+  // If the current tab isn't available to this user, fall back to the first one.
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.key === tab)) {
+      setTab(visibleTabs[0]?.key ?? "notifications");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   return (
     <div className="h-full overflow-y-auto scroll-thin">
@@ -30,7 +43,7 @@ export default function SettingsPage() {
 
         {/* Sub-tabs */}
         <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800">
-          {SETTINGS_TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const on = tab === t.key;
             return (
               <button
@@ -48,8 +61,9 @@ export default function SettingsPage() {
           })}
         </div>
 
-        {tab === "numbers" && <TwilioSettings />}
-        {tab === "caller-id" && <CallerIdManager />}
+        {tab === "company" && isAdmin && <CompanySettings />}
+        {tab === "numbers" && isAdmin && <TwilioSettings />}
+        {tab === "caller-id" && isAdmin && <CallerIdManager />}
         {tab === "notifications" && <NotificationsSettings />}
       </div>
     </div>

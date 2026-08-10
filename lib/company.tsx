@@ -23,6 +23,7 @@ type Ctx = {
   setActive: (companyId: string) => void;
   loading: boolean;
   isAdmin: boolean;
+  reload: () => Promise<void>;
 };
 
 const CompanyContext = createContext<Ctx | null>(null);
@@ -33,50 +34,46 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("memberships")
-        .select("role, companies(id, code, name)");
-      if (cancelled) return;
-      if (error || !data) {
-        setCompanies([]);
-        setLoading(false);
-        return;
-      }
-      const list: CompanyMembership[] = data
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .map((row: any) => {
-          const c = Array.isArray(row.companies) ? row.companies[0] : row.companies;
-          if (!c) return null;
-          return {
-            companyId: c.id as string,
-            code: c.code as string,
-            name: c.name as string,
-            role: row.role as "admin" | "viewer",
-          };
-        })
-        .filter(Boolean) as CompanyMembership[];
-
-      setCompanies(list);
-
-      let saved: string | null = null;
-      try {
-        saved = localStorage.getItem(KEY);
-      } catch {}
-      const chosen =
-        list.find((c) => c.companyId === saved)?.companyId ??
-        list[0]?.companyId ??
-        null;
-      setActiveId(chosen);
+  const reload = useCallback(async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("memberships")
+      .select("role, companies(id, code, name)");
+    if (error || !data) {
+      setCompanies([]);
       setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
+      return;
+    }
+    const list: CompanyMembership[] = data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((row: any) => {
+        const c = Array.isArray(row.companies) ? row.companies[0] : row.companies;
+        if (!c) return null;
+        return {
+          companyId: c.id as string,
+          code: c.code as string,
+          name: c.name as string,
+          role: row.role as "admin" | "viewer",
+        };
+      })
+      .filter(Boolean) as CompanyMembership[];
+
+    setCompanies(list);
+    setActiveId((prev) => {
+      let saved: string | null = prev;
+      if (!saved) {
+        try {
+          saved = localStorage.getItem(KEY);
+        } catch {}
+      }
+      return list.find((c) => c.companyId === saved)?.companyId ?? list[0]?.companyId ?? null;
+    });
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   const setActive = useCallback((companyId: string) => {
     setActiveId(companyId);
@@ -97,8 +94,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       setActive,
       loading,
       isAdmin: active?.role === "admin",
+      reload,
     }),
-    [companies, active, setActive, loading]
+    [companies, active, setActive, loading, reload]
   );
 
   return (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
 import FontSizeControl from "./FontSizeControl";
 import CompanySwitcher from "./CompanySwitcher";
@@ -11,6 +12,17 @@ type Tab = {
   href: string;
   label: string;
   icon: React.ReactNode;
+};
+
+const ADMIN_TAB: Tab = {
+  href: "/admin",
+  label: "Admin",
+  icon: (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  ),
 };
 
 // Add future features here — the bar grows automatically.
@@ -39,6 +51,16 @@ const TABS: Tab[] = [
 export default function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/context")
+      .then((r) => r.json())
+      .then((d: { isSuperadmin?: boolean }) => setIsSuperadmin(Boolean(d.isSuperadmin)))
+      .catch(() => {});
+  }, []);
+
+  const tabs = isSuperadmin ? [...TABS, ADMIN_TAB] : TABS;
 
   return (
     <header className="relative z-30 h-14 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-4">
@@ -61,7 +83,7 @@ export default function TopBar() {
 
       {/* Tabs */}
       <nav className="flex items-center gap-0.5 sm:gap-1 ml-0.5 sm:ml-2 shrink-0">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const active = pathname === t.href || pathname.startsWith(t.href + "/");
           return (
             <Link

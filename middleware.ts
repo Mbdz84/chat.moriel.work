@@ -37,7 +37,10 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isProtected = path.startsWith("/chat") || path.startsWith("/settings");
+  const isProtected =
+    path.startsWith("/chat") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/admin");
 
   // Not signed in and trying to reach the app -> send to login.
   if (isProtected && !user) {
