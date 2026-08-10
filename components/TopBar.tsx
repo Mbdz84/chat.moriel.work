@@ -41,7 +41,7 @@ export default function TopBar() {
   const router = useRouter();
 
   return (
-    <header className="h-14 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-4 overflow-hidden">
+    <header className="relative z-30 h-14 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-4">
       {/* Logo */}
       <Link href="/chat" className="flex items-center gap-2 shrink-0">
         <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center shadow-soft">
