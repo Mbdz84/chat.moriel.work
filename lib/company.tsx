@@ -36,9 +36,19 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   const reload = useCallback(async () => {
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setCompanies([]);
+      setLoading(false);
+      return;
+    }
+    // Only YOUR memberships — admins can technically read others' rows too.
     const { data, error } = await supabase
       .from("memberships")
-      .select("role, disabled, companies(id, code, name, disabled)");
+      .select("role, disabled, companies(id, code, name, disabled)")
+      .eq("user_id", user.id);
     if (error || !data) {
       setCompanies([]);
       setLoading(false);
