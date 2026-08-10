@@ -22,7 +22,7 @@ export default function CompanySwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 h-9 px-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors max-w-[180px]"
+        className="flex items-center gap-2 h-9 px-2 sm:px-2.5 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors max-w-[110px] sm:max-w-[200px]"
         title="Switch company"
       >
         <span className="w-6 h-6 rounded-md bg-brand-600 text-white text-[11px] font-semibold flex items-center justify-center shrink-0">

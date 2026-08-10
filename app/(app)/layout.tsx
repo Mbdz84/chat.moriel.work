@@ -10,7 +10,7 @@ export default function AppLayout({
   return (
     <CompanyProvider>
       <CallerIdProvider>
-        <div className="h-screen flex flex-col">
+        <div className="h-[100dvh] flex flex-col overflow-hidden">
           <TopBar />
           <main className="flex-1 min-h-0">{children}</main>
         </div>

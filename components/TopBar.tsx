@@ -41,7 +41,7 @@ export default function TopBar() {
   const router = useRouter();
 
   return (
-    <header className="h-14 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 sm:px-4 flex items-center gap-2 sm:gap-4">
+    <header className="h-14 shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-4 overflow-hidden">
       {/* Logo */}
       <Link href="/chat" className="flex items-center gap-2 shrink-0">
         <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white flex items-center justify-center shadow-soft">
@@ -55,19 +55,19 @@ export default function TopBar() {
       </Link>
 
       {/* Company switcher */}
-      <div className="pl-1 sm:pl-2 sm:border-l border-slate-200 dark:border-slate-800">
+      <div className="min-w-0 pl-0.5 sm:pl-2 sm:border-l border-slate-200 dark:border-slate-800">
         <CompanySwitcher />
       </div>
 
       {/* Tabs */}
-      <nav className="flex items-center gap-1 ml-1 sm:ml-2">
+      <nav className="flex items-center gap-0.5 sm:gap-1 ml-0.5 sm:ml-2 shrink-0">
         {TABS.map((t) => {
           const active = pathname === t.href || pathname.startsWith(t.href + "/");
           return (
             <Link
               key={t.href}
               href={t.href}
-              className={`flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-2 sm:px-3 h-9 rounded-lg text-sm font-medium transition-colors ${
                 active
                   ? "bg-brand-50 text-brand-700 dark:bg-brand-600/15 dark:text-brand-300"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
@@ -81,7 +81,7 @@ export default function TopBar() {
       </nav>
 
       {/* Right controls */}
-      <div className="ml-auto flex items-center gap-1 sm:gap-2">
+      <div className="ml-auto shrink-0 flex items-center gap-0.5 sm:gap-2">
         <div className="hidden sm:block">
           <FontSizeControl />
         </div>
@@ -92,7 +92,7 @@ export default function TopBar() {
             router.push("/");
             router.refresh();
           }}
-          className="flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+          className="flex items-center gap-2 px-2 sm:px-3 h-9 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
           title="Sign out"
         >
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

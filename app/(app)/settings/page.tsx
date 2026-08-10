@@ -8,15 +8,15 @@ import NotificationsSettings from "@/components/NotificationsSettings";
 
 // Settings sub-tabs. Add more entries here as features grow.
 const SETTINGS_TABS = [
-  { key: "numbers", label: "Numbers" },
   { key: "caller-id", label: "Caller ID" },
+  { key: "numbers", label: "Twilio numbers" },
   { key: "notifications", label: "Notifications" },
 ] as const;
 
 type TabKey = (typeof SETTINGS_TABS)[number]["key"];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<TabKey>("numbers");
+  const [tab, setTab] = useState<TabKey>("caller-id");
 
   return (
     <div className="h-full overflow-y-auto scroll-thin">

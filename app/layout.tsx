@@ -7,7 +7,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Chat", statusBarStyle: "default" },
   icons: {
-    icon: "/icon-192.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
     apple: "/icon-192.png",
   },
 };
