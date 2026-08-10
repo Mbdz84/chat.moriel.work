@@ -7,11 +7,10 @@ function ensureConfigured(): boolean {
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return false;
   if (!configured) {
-    webpush.setVapidDetails(
-      process.env.VAPID_SUBJECT || "mailto:admin@example.com",
-      pub,
-      priv
-    );
+    const raw = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
+    // web-push requires a mailto: or https: subject — normalize a bare email.
+    const subject = /^(mailto:|https?:)/i.test(raw) ? raw : `mailto:${raw}`;
+    webpush.setVapidDetails(subject, pub, priv);
     configured = true;
   }
   return true;
