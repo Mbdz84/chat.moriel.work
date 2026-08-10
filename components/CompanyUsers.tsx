@@ -8,6 +8,7 @@ type Member = {
   username: string | null;
   role: "admin" | "viewer";
   email: string;
+  disabled: boolean;
   isSelf: boolean;
 };
 
@@ -70,6 +71,16 @@ export default function CompanyUsers() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ companyId, userId, role: next }),
+    });
+    await load();
+  }
+
+  async function toggleDisabled(m: Member) {
+    if (!companyId) return;
+    await fetch("/api/company/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId, userId: m.userId, disabled: !m.disabled }),
     });
     await load();
   }
@@ -139,9 +150,14 @@ export default function CompanyUsers() {
             <div key={m.userId} className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {m.username || m.email}
-                    {m.isSelf && <span className="text-xs text-slate-400"> (you)</span>}
+                  <div className="text-sm font-medium truncate flex items-center gap-2">
+                    <span className="truncate">{m.username || m.email}</span>
+                    {m.isSelf && <span className="text-xs text-slate-400">(you)</span>}
+                    {m.disabled && (
+                      <span className="text-[11px] text-amber-600 bg-amber-100 dark:bg-amber-500/15 rounded-full px-2 py-0.5">
+                        Disabled
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-slate-400 truncate">{m.email}</div>
                 </div>
@@ -155,6 +171,14 @@ export default function CompanyUsers() {
                     <option value="viewer">Viewer</option>
                     <option value="admin">Admin</option>
                   </select>
+                  {!m.isSelf && (
+                    <button
+                      onClick={() => toggleDisabled(m)}
+                      className="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      {m.disabled ? "Enable" : "Disable"}
+                    </button>
+                  )}
                   {!m.isSelf && (
                     <button
                       onClick={() => setConfirmId(m.userId)}

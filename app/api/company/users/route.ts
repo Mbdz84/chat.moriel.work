@@ -44,19 +44,26 @@ export async function GET(req: NextRequest) {
 
   const { data: members } = await auth.admin
     .from("memberships")
-    .select("id, user_id, username, role")
+    .select("id, user_id, username, role, disabled")
     .eq("company_id", companyId)
     .order("created_at", { ascending: true });
 
   const withEmail = await Promise.all(
     (members ?? []).map(
-      async (m: { id: string; user_id: string; username: string | null; role: string }) => {
+      async (m: {
+        id: string;
+        user_id: string;
+        username: string | null;
+        role: string;
+        disabled: boolean;
+      }) => {
         const { data } = await auth.admin.auth.admin.getUserById(m.user_id);
         return {
           userId: m.user_id,
           username: m.username,
           role: m.role,
           email: data.user?.email ?? "",
+          disabled: m.disabled,
           isSelf: m.user_id === auth.user.id,
         };
       }
@@ -109,22 +116,34 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// PATCH /api/company/users { companyId, userId, role }
+// PATCH /api/company/users { companyId, userId, role?, disabled? }
 export async function PATCH(req: NextRequest) {
-  const { companyId, userId, role } = (await req.json()) as {
+  const { companyId, userId, role, disabled } = (await req.json()) as {
     companyId?: string;
     userId?: string;
     role?: string;
+    disabled?: boolean;
   };
-  if (!companyId || !userId || (role !== "admin" && role !== "viewer")) {
+  if (!companyId || !userId) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
   const auth = await requireAdmin(companyId);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  // Don't let an admin disable themselves out of the company.
+  if (disabled === true && userId === auth.user.id) {
+    return NextResponse.json({ error: "You can't disable yourself." }, { status: 400 });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const patch: any = {};
+  if (role === "admin" || role === "viewer") patch.role = role;
+  if (typeof disabled === "boolean") patch.disabled = disabled;
+  if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true });
+
   await auth.admin
     .from("memberships")
-    .update({ role })
+    .update(patch)
     .eq("company_id", companyId)
     .eq("user_id", userId);
   return NextResponse.json({ ok: true });

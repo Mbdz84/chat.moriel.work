@@ -30,23 +30,20 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient();
   const { data: members } = await admin
     .from("memberships")
-    .select("user_id, username, role")
+    .select("user_id, username, role, disabled")
     .eq("company_id", companyId)
     .order("created_at", { ascending: true });
 
   const withInfo = await Promise.all(
     (members ?? []).map(
-      async (m: { user_id: string; username: string | null; role: string }) => {
+      async (m: { user_id: string; username: string | null; role: string; disabled: boolean }) => {
         const { data } = await admin.auth.admin.getUserById(m.user_id);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const bu = (data.user as any)?.banned_until as string | null | undefined;
-        const banned = Boolean(bu && new Date(bu).getTime() > Date.now());
         return {
           userId: m.user_id,
           username: m.username,
           role: m.role,
           email: data.user?.email ?? "",
-          banned,
+          disabled: m.disabled,
           isSelf: m.user_id === superadmin.id,
         };
       }
@@ -106,11 +103,12 @@ export async function PATCH(req: NextRequest) {
   const superadmin = await getSuperadmin();
   if (!superadmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { companyId, userId, role, username } = (await req.json()) as {
+  const { companyId, userId, role, username, disabled } = (await req.json()) as {
     companyId?: string;
     userId?: string;
     role?: string;
     username?: string;
+    disabled?: boolean;
   };
   if (!companyId || !userId) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
@@ -118,6 +116,7 @@ export async function PATCH(req: NextRequest) {
   const patch: any = {};
   if (role === "admin" || role === "viewer") patch.role = role;
   if (typeof username === "string") patch.username = username.trim() || null;
+  if (typeof disabled === "boolean") patch.disabled = disabled;
   if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true });
 
   const admin = createAdminClient();

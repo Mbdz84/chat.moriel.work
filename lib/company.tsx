@@ -38,7 +38,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("memberships")
-      .select("role, companies(id, code, name, disabled)");
+      .select("role, disabled, companies(id, code, name, disabled)");
     if (error || !data) {
       setCompanies([]);
       setLoading(false);
@@ -47,6 +47,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     const list: CompanyMembership[] = data
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((row: any) => {
+        if (row.disabled) return null; // your membership is disabled here
         const c = Array.isArray(row.companies) ? row.companies[0] : row.companies;
         if (!c || c.disabled) return null; // hide disabled companies
         return {

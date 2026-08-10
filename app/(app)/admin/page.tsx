@@ -329,7 +329,7 @@ type Member = {
   username: string | null;
   role: "admin" | "viewer";
   email: string;
-  banned: boolean;
+  disabled: boolean;
   isSelf: boolean;
 };
 
@@ -386,13 +386,8 @@ function MembersPanel({
       setPw("");
     }
   }
-  async function toggleBan(m: Member) {
-    await fetch("/api/admin/users/ban", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: m.userId, banned: !m.banned }),
-    });
-    await load();
+  async function toggleDisabled(m: Member) {
+    await patch(m.userId, { disabled: !m.disabled });
   }
   async function removeMember(userId: string) {
     await fetch("/api/admin/users", {
@@ -442,7 +437,7 @@ function MembersPanel({
                 <div className="text-sm font-medium truncate flex items-center gap-2">
                   {m.username || m.email}
                   {m.isSelf && <span className="text-xs text-slate-400">(you)</span>}
-                  {m.banned && (
+                  {m.disabled && (
                     <span className="text-[11px] text-amber-600 bg-amber-100 dark:bg-amber-500/15 rounded-full px-2 py-0.5">
                       Disabled
                     </span>
@@ -470,8 +465,8 @@ function MembersPanel({
               Change password
             </button>
             {!m.isSelf && (
-              <button onClick={() => toggleBan(m)} className={smallBtn}>
-                {m.banned ? "Enable" : "Disable"}
+              <button onClick={() => toggleDisabled(m)} className={smallBtn}>
+                {m.disabled ? "Enable" : "Disable"}
               </button>
             )}
             {!m.isSelf && (
