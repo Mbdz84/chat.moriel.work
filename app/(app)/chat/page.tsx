@@ -569,7 +569,20 @@ function Bubble({ m }: { m: DbMessage }) {
           out ? "bg-brand-600 text-white rounded-br-md" : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-md"
         }`}
       >
-        <span className="whitespace-pre-wrap break-words">{m.body}</span>
+        {m.media_urls && m.media_urls.length > 0 && (
+          <span className="block mb-1 space-y-1">
+            {m.media_urls.map((_, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={i}
+                src={`/api/media?m=${m.id}&i=${i}`}
+                alt="Attachment"
+                className="rounded-lg max-w-full max-h-72 object-cover block"
+              />
+            ))}
+          </span>
+        )}
+        {m.body && <span className="whitespace-pre-wrap break-words">{m.body}</span>}
         <span className="inline-flex items-center gap-1 float-right ml-2 mt-1 translate-y-0.5">
           <span className={`text-[10px] ${out ? "text-white/70" : "text-slate-400"}`}>
             {timeShort(m.created_at)}

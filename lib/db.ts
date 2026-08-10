@@ -22,6 +22,7 @@ export type DbMessage = {
   body: string;
   status: string | null;
   created_at: string;
+  media_urls: string[] | null;
 };
 
 export async function fetchConversations(companyId: string): Promise<DbConversation[]> {
@@ -38,7 +39,7 @@ export async function fetchMessages(conversationId: string): Promise<DbMessage[]
   const s = createClient();
   const { data } = await s
     .from("messages")
-    .select("id, conversation_id, direction, body, status, created_at")
+    .select("id, conversation_id, direction, body, status, created_at, media_urls")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
   return (data ?? []) as DbMessage[];

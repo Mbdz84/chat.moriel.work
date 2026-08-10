@@ -25,6 +25,14 @@ export async function POST(req: NextRequest) {
   const sid = params.MessageSid ?? params.SmsMessageSid ?? null;
   if (!from || !to) return new NextResponse("bad request", { status: 400 });
 
+  // MMS media (pictures, etc.)
+  const numMedia = parseInt(params.NumMedia ?? "0", 10) || 0;
+  const mediaUrls: string[] = [];
+  for (let i = 0; i < numMedia; i++) {
+    const u = params[`MediaUrl${i}`];
+    if (u) mediaUrls.push(u);
+  }
+
   const admin = createAdminClient();
 
   // Which company owns the number that was texted?
@@ -74,6 +82,7 @@ export async function POST(req: NextRequest) {
       body,
       status: "received",
       twilio_sid: sid,
+      media_urls: mediaUrls.length ? mediaUrls : null,
     });
 
     // Notify company members (unless the conversation is muted).
@@ -94,11 +103,22 @@ export async function POST(req: NextRequest) {
           .from("memberships")
           .select("user_id")
           .eq("company_id", companyId);
-        const userIds = (members ?? []).map((m: { user_id: string }) => m.user_id);
+        const ids = new Set(
+          (members ?? []).map((m: { user_id: string }) => m.user_id as string)
+        );
+        // Also notify platform super-admins (who aren't members).
+        try {
+          const { data: supers } = await admin.rpc("platform_admin_user_ids");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supers as any[] | null)?.forEach((r) =>
+            ids.add(typeof r === "string" ? r : (r?.platform_admin_user_ids ?? r))
+          );
+        } catch {}
 
-        await sendPushToUsers(admin, userIds, {
+        const preview = body || (mediaUrls.length ? "📷 Photo" : "New message");
+        await sendPushToUsers(admin, Array.from(ids), {
           title,
-          body: body || "New message",
+          body: preview,
           url: "/chat",
           tag: convo.id,
         });
