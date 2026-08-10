@@ -52,5 +52,12 @@ export async function POST(req: NextRequest) {
     const msg = error.code === "23505" ? "That company code is already taken." : "Could not create company.";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
+
+  // Make the creator an admin member so it appears in their company switcher.
+  await admin.from("memberships").upsert(
+    { user_id: user.id, company_id: data.id, role: "admin", username: "Owner" },
+    { onConflict: "user_id,company_id" }
+  );
+
   return NextResponse.json({ company: data });
 }

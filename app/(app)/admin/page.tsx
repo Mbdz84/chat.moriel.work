@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useCompany } from "@/lib/company";
 
 type Company = {
   id: string;
@@ -11,6 +12,7 @@ type Company = {
 };
 
 export default function AdminPage() {
+  const { reload: reloadSwitcher } = useCompany();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
 
@@ -20,7 +22,9 @@ export default function AdminPage() {
       const d = (await res.json()) as { companies: Company[] };
       setCompanies(d.companies);
     }
-  }, []);
+    // Also refresh the top-bar company switcher (memberships may have changed).
+    reloadSwitcher();
+  }, [reloadSwitcher]);
 
   useEffect(() => {
     (async () => {
