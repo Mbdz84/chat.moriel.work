@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSuperadmin } from "@/lib/superadmin";
 import { sendSms } from "@/lib/twilio";
 
 export const runtime = "nodejs";
@@ -33,14 +34,15 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Only admins may send.
+  // Only admins may send (platform super-admins are treated as admins).
   const { data: membership } = await admin
     .from("memberships")
     .select("role")
     .eq("user_id", user.id)
     .eq("company_id", convo.company_id)
     .single();
-  if (membership?.role !== "admin") {
+  const isSuper = Boolean(await getSuperadmin());
+  if (membership?.role !== "admin" && !isSuper) {
     return NextResponse.json(
       { error: "You have view-only access." },
       { status: 403 }

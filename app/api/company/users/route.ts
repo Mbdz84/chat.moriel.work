@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSuperadmin } from "@/lib/superadmin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ async function requireAdmin(companyId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized", status: 401 as const };
   const admin = createAdminClient();
+  if (await getSuperadmin()) return { user, admin };
   const { data: m } = await admin
     .from("memberships")
     .select("role")

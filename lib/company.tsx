@@ -44,30 +44,57 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    // Only YOUR memberships — admins can technically read others' rows too.
-    const { data, error } = await supabase
-      .from("memberships")
-      .select("role, disabled, companies(id, code, name, disabled)")
-      .eq("user_id", user.id);
-    if (error || !data) {
-      setCompanies([]);
-      setLoading(false);
-      return;
-    }
-    const list: CompanyMembership[] = data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((row: any) => {
-        if (row.disabled) return null; // your membership is disabled here
-        const c = Array.isArray(row.companies) ? row.companies[0] : row.companies;
-        if (!c || c.disabled) return null; // hide disabled companies
-        return {
+
+    // Platform super-admins see (and can enter) every company.
+    let isSuper = false;
+    try {
+      const r = await fetch("/api/admin/context");
+      const d = (await r.json()) as { isSuperadmin?: boolean };
+      isSuper = Boolean(d.isSuperadmin);
+    } catch {}
+
+    let list: CompanyMembership[] = [];
+
+    if (isSuper) {
+      const { data: comps } = await supabase
+        .from("companies")
+        .select("id, code, name, disabled")
+        .order("created_at", { ascending: true });
+      list = (comps ?? [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((c: any) => !c.disabled)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((c: any) => ({
           companyId: c.id as string,
           code: c.code as string,
           name: c.name as string,
-          role: row.role as "admin" | "viewer",
-        };
-      })
-      .filter(Boolean) as CompanyMembership[];
+          role: "admin" as const,
+        }));
+    } else {
+      const { data, error } = await supabase
+        .from("memberships")
+        .select("role, disabled, companies(id, code, name, disabled)")
+        .eq("user_id", user.id);
+      if (error || !data) {
+        setCompanies([]);
+        setLoading(false);
+        return;
+      }
+      list = data
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((row: any) => {
+          if (row.disabled) return null;
+          const c = Array.isArray(row.companies) ? row.companies[0] : row.companies;
+          if (!c || c.disabled) return null;
+          return {
+            companyId: c.id as string,
+            code: c.code as string,
+            name: c.name as string,
+            role: row.role as "admin" | "viewer",
+          };
+        })
+        .filter(Boolean) as CompanyMembership[];
+    }
 
     setCompanies(list);
     setActiveId((prev) => {

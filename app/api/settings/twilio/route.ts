@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSuperadmin } from "@/lib/superadmin";
 import { listIncomingNumbers, getAccountBalance } from "@/lib/twilio";
 import { normalizeNumber } from "@/lib/format";
 
@@ -19,6 +20,7 @@ async function requireMember(companyId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized", status: 401 as const };
   const admin = createAdminClient();
+  if (await getSuperadmin()) return { role: "admin" as const, admin };
   const { data: m } = await admin
     .from("memberships")
     .select("role")

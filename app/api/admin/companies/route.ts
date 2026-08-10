@@ -53,11 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  // Make the creator an admin member so it appears in their company switcher.
-  await admin.from("memberships").upsert(
-    { user_id: user.id, company_id: data.id, role: "admin", username: "Owner" },
-    { onConflict: "user_id,company_id" }
-  );
-
+  // Note: the super-admin is NOT added as a member — they have implicit access
+  // to every company and shouldn't appear in member lists.
   return NextResponse.json({ company: data });
 }
