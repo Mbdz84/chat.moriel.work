@@ -188,12 +188,18 @@ export default function ChatPage() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [activeId, messages.length]);
 
-  // Auto-grow the reply box as the user types multiple lines (capped by max-h).
+  // Auto-grow the reply box as the user types multiple lines. It never shrinks
+  // below one line (min-height in CSS) and never grows past MAX; only past MAX
+  // does a scrollbar appear — otherwise overflow is hidden so no stray
+  // scrollbar thumb shows up.
   useEffect(() => {
     const el = composerRef.current;
     if (!el) return;
-    el.style.height = "0px";
-    el.style.height = `${el.scrollHeight}px`;
+    const MAX = 128; // px — matches the max-h-32 utility below
+    el.style.height = "auto";
+    const next = Math.min(el.scrollHeight, MAX);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > MAX ? "auto" : "hidden";
   }, [draft, activeId]);
 
   // ----- desktop breakpoint + saved widths/modes -----
@@ -542,7 +548,7 @@ export default function ChatPage() {
                     }}
                     rows={1}
                     placeholder="Type a reply…"
-                    className="flex-1 resize-none rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-2.5 text-sm leading-6 outline-none focus:ring-2 focus:ring-brand-500/40 placeholder:text-slate-400 max-h-32 overflow-y-auto scroll-thin"
+                    className="flex-1 resize-none rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-2.5 text-sm leading-6 outline-none focus:ring-2 focus:ring-brand-500/40 placeholder:text-slate-400 min-h-[44px] max-h-32 overflow-y-hidden scroll-thin"
                   />
                   <button
                     onClick={onSend}
