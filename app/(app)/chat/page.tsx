@@ -87,6 +87,7 @@ export default function ChatPage() {
   const [convoModes, setConvoModes] = useState<Record<string, DisplayMode>>({});
   const draggingRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const activeIdRef = useRef("");
   activeIdRef.current = activeId;
 
@@ -186,6 +187,14 @@ export default function ChatPage() {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [activeId, messages.length]);
+
+  // Auto-grow the reply box as the user types multiple lines (capped by max-h).
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft, activeId]);
 
   // ----- desktop breakpoint + saved widths/modes -----
   useEffect(() => {
@@ -517,23 +526,28 @@ export default function ChatPage() {
               {/* Composer */}
               <div className="shrink-0 border-t border-slate-200 dark:border-slate-800">
                 {sendError && <p className="px-4 pt-2 text-xs text-red-500">{sendError}</p>}
-                <div className="px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3">
-                  <input
+                <div className="px-3 sm:px-4 py-3 flex items-end gap-2 sm:gap-3">
+                  <textarea
+                    ref={composerRef}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
+                      // Desktop: Enter sends, Shift+Enter makes a new line.
+                      // Mobile: Enter always makes a new line — only the Send
+                      // button sends the message.
+                      if (e.key === "Enter" && !e.shiftKey && isDesktop) {
                         e.preventDefault();
                         onSend();
                       }
                     }}
+                    rows={1}
                     placeholder="Type a reply…"
-                    className="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-4 h-11 text-sm outline-none focus:ring-2 focus:ring-brand-500/40 placeholder:text-slate-400"
+                    className="flex-1 resize-none rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-2.5 text-sm leading-6 outline-none focus:ring-2 focus:ring-brand-500/40 placeholder:text-slate-400 max-h-32 overflow-y-auto scroll-thin"
                   />
                   <button
                     onClick={onSend}
                     disabled={!draft.trim() || sending}
-                    className="h-11 px-5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium flex items-center justify-center disabled:opacity-40 transition-colors"
+                    className="h-11 px-5 shrink-0 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium flex items-center justify-center disabled:opacity-40 transition-colors"
                   >
                     {sending ? "Sending…" : "Send"}
                   </button>
