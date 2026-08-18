@@ -1,5 +1,6 @@
 import TopBar from "@/components/TopBar";
 import ViewportHeight from "@/components/ViewportHeight";
+import AppKeeper from "@/components/AppKeeper";
 import { CallerIdProvider } from "@/lib/callerId";
 import { CompanyProvider } from "@/lib/company";
 
@@ -12,6 +13,7 @@ export default function AppLayout({
     <CompanyProvider>
       <CallerIdProvider>
         <ViewportHeight />
+        <AppKeeper />
         <div
           style={{ height: "var(--app-height, 100dvh)" }}
           className="flex flex-col overflow-hidden"

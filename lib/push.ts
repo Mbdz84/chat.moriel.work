@@ -63,6 +63,45 @@ export async function enablePush(): Promise<void> {
   });
 }
 
+// Silently make sure this device is registered and subscribed for push —
+// WITHOUT prompting. Safe to call on every app load: it registers the service
+// worker (so notifications work even if the user never opened Settings), and
+// if permission was already granted, it re-creates any lost subscription and
+// re-syncs it to the server. This is what keeps push "always on".
+export async function ensurePushSubscribed(): Promise<boolean> {
+  if (!pushSupported()) return false;
+
+  let reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) reg = await navigator.serviceWorker.register("/sw.js");
+  await navigator.serviceWorker.ready;
+
+  // Never prompt here — only resubscribe if the user already said yes.
+  if (Notification.permission !== "granted") return false;
+
+  const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!key) return false;
+
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(key),
+    });
+  }
+
+  const json = sub.toJSON();
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      endpoint: json.endpoint,
+      p256dh: json.keys?.p256dh,
+      auth: json.keys?.auth,
+    }),
+  });
+  return true;
+}
+
 export async function disablePush(): Promise<void> {
   const sub = await currentSubscription();
   if (!sub) return;
