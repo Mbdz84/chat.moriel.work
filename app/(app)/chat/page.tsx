@@ -89,6 +89,7 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const activeIdRef = useRef("");
+  const pushedRef = useRef(false);
   activeIdRef.current = activeId;
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
@@ -202,6 +203,26 @@ export default function ChatPage() {
     el.style.overflowY = el.scrollHeight > MAX ? "auto" : "hidden";
   }, [draft, activeId]);
 
+  // ----- Android back button: return to the list instead of leaving the app -----
+  // When a chat opens on a phone, push a history entry. The hardware/gesture
+  // back button then pops that entry (popstate) and we show the list again.
+  useEffect(() => {
+    if (isDesktop) return;
+    if (mobilePane === "chat" && !pushedRef.current) {
+      window.history.pushState({ chatPane: true }, "");
+      pushedRef.current = true;
+    }
+  }, [mobilePane, isDesktop]);
+
+  useEffect(() => {
+    const onPop = () => {
+      pushedRef.current = false;
+      setMobilePane("list");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   // ----- desktop breakpoint + saved widths/modes -----
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -285,6 +306,17 @@ export default function ChatPage() {
     }
   }
 
+  // Return to the list. If we pushed a history entry when opening the chat,
+  // consume it via history.back() so the browser/Android back stack stays in
+  // sync; otherwise just switch panes.
+  function goBackToList() {
+    if (pushedRef.current) {
+      window.history.back();
+    } else {
+      setMobilePane("list");
+    }
+  }
+
   async function onSend() {
     const body = draft.trim();
     if (!body || !active || sending) return;
@@ -304,7 +336,7 @@ export default function ChatPage() {
   function setStatus(id: string, status: ConvoStatus) {
     setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
     patchConversation(id, { status });
-    setMobilePane("list");
+    goBackToList();
   }
   function toggleMute(c: DbConversation) {
     setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, muted: !x.muted } : x)));
@@ -313,7 +345,7 @@ export default function ChatPage() {
   function removeConvo(id: string) {
     setConversations((prev) => prev.filter((c) => c.id !== id));
     deleteConversation(id);
-    setMobilePane("list");
+    goBackToList();
   }
 
   const activeName = active ? nameFor(active.contact_number) : undefined;
@@ -396,10 +428,18 @@ export default function ChatPage() {
               const title = titleFor(c);
               const sub = subFor(c);
               return (
-                <button
+                <div
                   key={c.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openConversation(c.id)}
-                  className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors mb-0.5 ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openConversation(c.id);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors mb-0.5 cursor-pointer ${
                     on ? "bg-brand-50 dark:bg-brand-600/15" : "hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
@@ -432,7 +472,23 @@ export default function ChatPage() {
                       )}
                     </div>
                   </div>
-                </button>
+                  {(tab === "blocked" || tab === "archived") && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStatus(c.id, "inbox");
+                      }}
+                      title="Move to Inbox"
+                      aria-label="Move to Inbox"
+                      className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-600/15"
+                    >
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+                        <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               );
             })}
             {filtered.length === 0 && (
@@ -471,7 +527,7 @@ export default function ChatPage() {
               {/* Header */}
               <div className="min-h-14 shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-slate-200 dark:border-slate-800">
                 <button
-                  onClick={() => setMobilePane("list")}
+                  onClick={goBackToList}
                   className="md:hidden w-9 h-9 -ml-1 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                   aria-label="Back"
                 >
@@ -498,7 +554,11 @@ export default function ChatPage() {
                   <IconBtn title={active.muted ? "Unmute" : "Mute"} onClick={() => toggleMute(active)} active={active.muted}>
                     {active.muted ? <MuteIcon big /> : <BellIcon />}
                   </IconBtn>
-                  <IconBtn title="Archive" onClick={() => setStatus(active.id, "archived")}>
+                  <IconBtn
+                    title={active.status === "archived" ? "Move to Inbox" : "Archive"}
+                    onClick={() => setStatus(active.id, active.status === "archived" ? "inbox" : "archived")}
+                    active={active.status === "archived"}
+                  >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="4" width="18" height="4" rx="1" />
                       <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
