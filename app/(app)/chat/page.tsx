@@ -85,6 +85,7 @@ export default function ChatPage() {
   const [listWidth, setListWidth] = useState(360);
   const [isDesktop, setIsDesktop] = useState(false);
   const [convoModes, setConvoModes] = useState<Record<string, DisplayMode>>({});
+  const [refreshing, setRefreshing] = useState(false);
   const draggingRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -137,6 +138,17 @@ export default function ChatPage() {
     setConversations(await fetchConversations(companyId));
     notifyUnread();
   }, [companyId]);
+
+  const handleRefresh = useCallback(async () => {
+    // Spin for at least one full rotation, even if the reload is instant.
+    setRefreshing(true);
+    const minSpin = new Promise((res) => setTimeout(res, 600));
+    try {
+      await Promise.all([loadConversations(), minSpin]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadConversations]);
 
   useEffect(() => {
     loadConversations();
@@ -365,11 +377,12 @@ export default function ChatPage() {
               <p className="text-xs text-slate-400">Incoming SMS to your numbers</p>
             </div>
             <button
-              onClick={() => loadConversations()}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 active:scale-90 transition-transform disabled:opacity-60"
               title="Refresh"
             >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={refreshing ? "animate-spin" : ""}>
                 <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
                 <path d="M21 3v5h-5" />
               </svg>
