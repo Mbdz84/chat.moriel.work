@@ -13,6 +13,7 @@ import { useCallerId } from "@/lib/callerId";
 import { useCompany } from "@/lib/company";
 import {
   fetchConversations,
+  fetchNumbers,
   fetchMessages,
   patchConversation,
   deleteConversation,
@@ -74,6 +75,7 @@ export default function ChatPage() {
   const companyId = activeCompany?.companyId ?? null;
 
   const [conversations, setConversations] = useState<DbConversation[]>([]);
+  const [numberLabels, setNumberLabels] = useState<Record<string, string>>({});
   const [messages, setMessages] = useState<DbMessage[]>([]);
   const [tab, setTab] = useState<ConvoStatus>("inbox");
   const [activeId, setActiveId] = useState<string>("");
@@ -81,6 +83,7 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const [mobilePane, setMobilePane] = useState<"list" | "chat">("list");
   const [listWidth, setListWidth] = useState(360);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -153,6 +156,26 @@ export default function ChatPage() {
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  // ----- load the labels for the company's Twilio numbers -----
+  useEffect(() => {
+    if (!companyId) {
+      setNumberLabels({});
+      return;
+    }
+    let cancelled = false;
+    fetchNumbers(companyId).then((rows) => {
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const n of rows) {
+        if (n.label) map[normalizeNumber(n.phone_number)] = n.label;
+      }
+      setNumberLabels(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
 
   // ----- realtime: refresh on any message/conversation change -----
   useEffect(() => {
@@ -233,6 +256,22 @@ export default function ChatPage() {
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // Tapping "Chat Console" in the top bar returns to the conversation list,
+  // even when we're already on /chat with a conversation open on mobile.
+  useEffect(() => {
+    const goHome = () => {
+      if (pushedRef.current) {
+        // Consume the history entry we pushed when the chat opened; the
+        // popstate handler above then flips the pane back to the list.
+        window.history.back();
+      } else {
+        setMobilePane("list");
+      }
+    };
+    window.addEventListener("chat:home", goHome);
+    return () => window.removeEventListener("chat:home", goHome);
   }, []);
 
   // ----- desktop breakpoint + saved widths/modes -----
@@ -354,10 +393,18 @@ export default function ChatPage() {
     setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, muted: !x.muted } : x)));
     patchConversation(c.id, { muted: !c.muted });
   }
-  function removeConvo(id: string) {
+  async function removeConvo(id: string) {
+    // Optimistically drop it, but keep a snapshot so we can restore it if the
+    // database refuses the delete (e.g. a missing RLS policy).
+    const snapshot = conversations;
     setConversations((prev) => prev.filter((c) => c.id !== id));
-    deleteConversation(id);
     goBackToList();
+    const res = await deleteConversation(id);
+    if (!res.ok) {
+      setConversations(snapshot);
+      setActiveId(id);
+      setDeleteError(res.error ?? "Could not delete this conversation.");
+    }
   }
 
   const activeName = active ? nameFor(active.contact_number) : undefined;
@@ -388,6 +435,19 @@ export default function ChatPage() {
               </svg>
             </button>
           </div>
+
+          {deleteError && (
+            <div className="mx-3 mb-2 flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+              <span className="flex-1">{deleteError}</span>
+              <button
+                onClick={() => setDeleteError("")}
+                className="shrink-0 font-semibold hover:underline"
+                aria-label="Dismiss"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="px-1 flex items-center border-b border-slate-200 dark:border-slate-800">
@@ -470,6 +530,11 @@ export default function ChatPage() {
                         <span className="text-[11px] text-slate-400">
                           {formatNumber(c.our_number)}
                         </span>
+                        {numberLabels[normalizeNumber(c.our_number)] && (
+                          <span className="text-[11px] text-slate-400 truncate max-w-[130px]">
+                            {numberLabels[normalizeNumber(c.our_number)]}
+                          </span>
+                        )}
                       </span>
                     </div>
                     {sub && <div className="text-xs text-slate-400 truncate">{sub}</div>}

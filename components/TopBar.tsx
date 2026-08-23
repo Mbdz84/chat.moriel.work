@@ -271,7 +271,17 @@ export default function TopBar() {
             </span>
           )}
         </button>
-        <Link href="/chat" className="flex items-center gap-2 min-w-0">
+        <Link
+          href="/chat"
+          onClick={() => {
+            // Already on /chat with a conversation open? The route won't change,
+            // so tell the chat page to pop back to the contact list.
+            try {
+              window.dispatchEvent(new Event("chat:home"));
+            } catch {}
+          }}
+          className="flex items-center gap-2 min-w-0"
+        >
           <span className="font-semibold tracking-tight truncate">Chat Console</span>
         </Link>
         <div className="ml-auto shrink-0">
@@ -296,7 +306,16 @@ export default function TopBar() {
         >
           {/* Drawer header */}
           <div className="h-14 shrink-0 px-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
-            <Link href="/chat" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 min-w-0">
+            <Link
+              href="/chat"
+              onClick={() => {
+                setMenuOpen(false);
+                try {
+                  window.dispatchEvent(new Event("chat:home"));
+                } catch {}
+              }}
+              className="flex items-center gap-2 min-w-0"
+            >
               {logo}
               <span className="font-semibold tracking-tight truncate">Chat Console</span>
             </Link>
