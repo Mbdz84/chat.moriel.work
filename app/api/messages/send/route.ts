@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   // Load the conversation as the user — RLS guarantees they're a member.
   const { data: convo, error } = await supabase
     .from("conversations")
-    .select("id, company_id, our_number, contact_number")
+    .select("id, company_id, our_number, contact_number, channel")
     .eq("id", conversationId)
     .single();
   if (error || !convo) {
@@ -68,11 +68,14 @@ export async function POST(req: NextRequest) {
   let sid: string | null = null;
   let status = "sent";
   try {
+    // WhatsApp goes out through the same Twilio Messages API, but From/To must
+    // carry the "whatsapp:" prefix so it's delivered on WhatsApp, not SMS.
+    const isWa = convo.channel === "whatsapp";
     const r = await sendSms({
       accountSid: company.twilio_account_sid,
       authToken: company.twilio_auth_token,
-      from: convo.our_number,
-      to: convo.contact_number,
+      from: isWa ? `whatsapp:${convo.our_number}` : convo.our_number,
+      to: isWa ? `whatsapp:${convo.contact_number}` : convo.contact_number,
       body: body.trim(),
     });
     sid = r.sid;
@@ -86,6 +89,7 @@ export async function POST(req: NextRequest) {
     conversation_id: convo.id,
     company_id: convo.company_id,
     direction: "out",
+    channel: convo.channel ?? "sms",
     body: body.trim(),
     status,
     twilio_sid: sid,

@@ -7,6 +7,7 @@ export type DbConversation = {
   company_id: string;
   our_number: string;
   contact_number: string;
+  channel: "sms" | "whatsapp";
   status: ConvoStatus;
   muted: boolean;
   unread: number;
@@ -19,6 +20,7 @@ export type DbMessage = {
   id: string;
   conversation_id: string;
   direction: "in" | "out";
+  channel: "sms" | "whatsapp";
   body: string;
   status: string | null;
   created_at: string;
@@ -56,7 +58,7 @@ export async function fetchMessages(conversationId: string): Promise<DbMessage[]
   const s = createClient();
   const { data } = await s
     .from("messages")
-    .select("id, conversation_id, direction, body, status, created_at, media_urls")
+    .select("id, conversation_id, direction, channel, body, status, created_at, media_urls")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
   return (data ?? []) as DbMessage[];

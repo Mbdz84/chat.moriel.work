@@ -19,8 +19,14 @@ export async function POST(req: NextRequest) {
     params[k] = String(v);
   });
 
-  const from = params.From;
-  const to = params.To;
+  // WhatsApp messages arrive on the same webhook as SMS, but Twilio prefixes
+  // the numbers with "whatsapp:". Detect the channel, then strip the prefix so
+  // our_number/contact_number stay plain numbers (the reply route re-adds it).
+  const channel: "sms" | "whatsapp" = params.From?.startsWith("whatsapp:")
+    ? "whatsapp"
+    : "sms";
+  const from = (params.From ?? "").replace(/^whatsapp:/, "");
+  const to = (params.To ?? "").replace(/^whatsapp:/, "");
   const body = params.Body ?? "";
   const sid = params.MessageSid ?? params.SmsMessageSid ?? null;
   if (!from || !to) return new NextResponse("bad request", { status: 400 });
@@ -68,8 +74,8 @@ export async function POST(req: NextRequest) {
   const { data: convo } = await admin
     .from("conversations")
     .upsert(
-      { company_id: companyId, our_number: to, contact_number: from },
-      { onConflict: "company_id,our_number,contact_number" }
+      { company_id: companyId, our_number: to, contact_number: from, channel },
+      { onConflict: "company_id,our_number,contact_number,channel" }
     )
     .select("id, muted")
     .single();
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
       conversation_id: convo.id,
       company_id: companyId,
       direction: "in",
+      channel,
       body,
       status: "received",
       twilio_sid: sid,
