@@ -1,29 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Remember the last company code entered on this device.
-  useEffect(() => {
-    try {
-      const last = localStorage.getItem("lastCompanyCode");
-      if (last) setCompany(last);
-    } catch {}
-  }, []);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!company || !email || !password) {
+    if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
@@ -40,31 +31,9 @@ export default function LoginPage() {
       return;
     }
 
-    // Confirm this account belongs to the entered company code.
-    // RLS only returns the company if the user is a member of it.
-    const { data: comp } = await supabase
-      .from("companies")
-      .select("id, disabled")
-      .eq("code", company.trim())
-      .maybeSingle();
-
-    if (!comp) {
-      setError("You don't have access to that company code.");
-      await supabase.auth.signOut();
-      setLoading(false);
-      return;
-    }
-    if (comp.disabled) {
-      setError("This company is currently disabled. Contact your administrator.");
-      await supabase.auth.signOut();
-      setLoading(false);
-      return;
-    }
-
-    try {
-      localStorage.setItem("activeCompanyId", comp.id);
-      localStorage.setItem("lastCompanyCode", company.trim());
-    } catch {}
+    // Company/workspace selection is handled automatically after login by
+    // CompanyProvider (lib/company.tsx): it loads the user's memberships
+    // (or every company, for super-admins) and picks the active one.
 
     // Full navigation so middleware picks up the fresh session cookie.
     router.push("/chat");
@@ -96,15 +65,6 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-soft p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field
-              label="Company code"
-              value={company}
-              onChange={setCompany}
-              placeholder="e.g. 12345"
-              name="company"
-              autoComplete="organization"
-              autoFocus
-            />
-            <Field
               label="Email"
               value={email}
               onChange={setEmail}
@@ -112,6 +72,7 @@ export default function LoginPage() {
               type="email"
               name="email"
               autoComplete="username"
+              autoFocus
             />
             <Field
               label="Password"
